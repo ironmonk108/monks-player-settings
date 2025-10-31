@@ -1,13 +1,13 @@
 {
   "title": "Monk's Player Settings",
   "description": "Allow the GM to change player settings and sync client setings between browsers",
-  "version": "12.01",
+  "version": "13.01",
   "authors": [
     {
       "name": "IronMonk",
-      "discord": "ironmonk88#4075",
+      "discord": "ironmonk108",
 	  "flags": {
-		  "github": "ironmonk88",
+		  "github": "ironmonk108",
 		  "patreon": "ironmonk",
 		  "ko-fi": "ironmonk88"
 	  }
@@ -28,17 +28,19 @@
   "styles": [
     "css/monks-player-settings.css"
   ],
-  "url": "https://github.com/ironmonk88/monks-player-settings",
-  "download": "https://github.com/ironmonk88/monks-player-settings/archive/12.01.zip",
-  "manifest": "https://github.com/ironmonk88/monks-player-settings/releases/latest/download/module.json",
-  "bugs": "https://github.com/ironmonk88/monks-player-settings/issues",
-  "allowBugReporter": true,
+  "url": "https://github.com/ironmonk108/monks-player-settings",
+  "download": "https://github.com/ironmonk108/monks-player-settings/archive/13.01.zip",
+  "manifest": "https://github.com/ironmonk108/monks-player-settings/releases/latest/download/module.json",
+  "bugs": "https://github.com/ironmonk108/monks-player-settings/issues",
   "id": "monks-player-settings",
   "compatibility": {
-    "minimum": "12",
-    "verified": "12"
+    "minimum": "13",
+    "verified": "13"
   },
   "name": "monks-player-settings",
-  "minimumCoreVersion": "12",
-  "compatibleCoreVersion": "12"
+  "minimumCoreVersion": "13",
+  "compatibleCoreVersion": "13",
+  "flags": {
+    "allowBugReporter": true
+  }
 }

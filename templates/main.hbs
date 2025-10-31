@@ -1,0 +1,37 @@
+<div class="main flexcol{{#if loading}} interstitial{{/if}}">
+    <div id="mps-view-group" class="flexrow">
+        <label>View settings for Player:</label>
+        <div class="form-fields">
+            <select class="viewed-user">
+                {{ selectOptions players selected=userId localize=true }}
+            </select>
+        </div>
+    </div>
+    {{~#if (and subtemplates.filters (not loading))}}
+    <nav class="filters flexrow">
+        {{> (lookup subtemplates "filters")}}
+    </nav>
+    {{/if~}}
+    <div class="categories flexcol" data-tabs>
+        {{~#if loading}}
+        <div class="loading">
+            <h3 class="divider">{{localize loading}}</h3>
+            <i class="fa-solid fa-spinner fa-spin"></i>
+        </div>
+        {{~else~}}
+        {{#each categories as |category|}}
+        <section class="tab scrollable{{#if @root.packageList}} package-list{{/if}}{{#if category.active}} active{{/if}}"
+                 data-group="categories"
+                 data-tab="{{category.id}}"
+                 data-category="{{category.id}}">
+            {{> (lookup @root.subtemplates "category") category=category}}
+        </section>
+        {{/each}}
+        {{/if~}}
+    </div>
+    {{~#if submitButton}}
+    <footer class="form-footer">
+        <button type="submit"><i class="fa-solid fa-floppy-disk" inert></i> {{localize "SETTINGS.Save"}}</button>
+    </footer>
+    {{/if}}
+</div>
