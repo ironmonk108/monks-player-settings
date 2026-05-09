@@ -372,11 +372,15 @@ export class MonksPlayerSettings {
     }
 
     static checkRefresh() {
-        Dialog.confirm({
-            title: `Browser refresh`,
+        foundry.applications.api.DialogV2.confirm({
+            window: {
+                title: `Browser refresh`
+            },
             content: `<h4>Some of the settings changed required Foundry to be restarted</h4><p>Reload the browser?</p>`,
-            yes: () => {
-                location.reload();
+            yes: {
+                callback: async (event) => {
+                    location.reload();
+                }
             }
         });
     }
