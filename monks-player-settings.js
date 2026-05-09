@@ -27,10 +27,10 @@ export class MonksPlayerSettings {
 
         registerSettings();
 
-        Object.defineProperty(ClientSettings.prototype, "sheet", {
+        Object.defineProperty(foundry.helpers.ClientSettings.prototype, "sheet", {
             get: function () {
                 if (!this._sheet) {
-                    let settingCls = WithMonksSettingsConfig(game.settings._sheet?.constructor || SettingsConfig);
+                    let settingCls = WithMonksSettingsConfig(game.settings._sheet?.constructor || foundry.applications.settings.SettingsConfig);
                     this._sheet = new settingCls();
                 }
                 return this._sheet;
@@ -40,12 +40,12 @@ export class MonksPlayerSettings {
 
     static async ready() {
         if (game.modules.get("settings-extender")?.active) {
-            let settingCls = WithMonksSettingsConfig(game.settings._sheet?.constructor || SettingsConfig);
+            let settingCls = WithMonksSettingsConfig(game.settings._sheet?.constructor || foundry.applications.settings.SettingsConfig);
             game.settings._sheet = new settingCls(game.settings.settings);
 
             window.setTimeout(() => {
                 if (!(game.settings._sheet instanceof MonksSettingsConfig)) {
-                    let settingCls = WithMonksSettingsConfig(game.settings._sheet?.constructor || SettingsConfig);
+                    let settingCls = WithMonksSettingsConfig(game.settings._sheet?.constructor || foundry.applications.settings.SettingsConfig);
                     game.settings._sheet = new settingCls(game.settings.settings);
                 }
             }, 500);
@@ -242,13 +242,17 @@ export class MonksPlayerSettings {
             let data = this.makeReadable(diff);
 
             if (!foundry.utils.isEmpty(data)) {
-                let content = await renderTemplate("./modules/monks-player-settings/templates/differences.html", { differences: data });
-                await Dialog.wait({
-                    title: `Data Sync`,
+                let content = await foundry.applications.handlebars.renderTemplate("./modules/monks-player-settings/templates/differences.html", { differences: data });
+                await foundry.applications.api.DialogV2.wait({
+                    window: {
+                        title: "Difference in client settings detected",
+                    },
+                    position: { width: 600 },
                     content: content,
-                    buttons: {
-                        yes: {
-                            icon: '<i class="fas fa-check"></i>',
+                    buttons: [
+                        {
+                            icon: "fas fa-check",
+                            action: "yes",
                             label: game.i18n.localize("Yes"),
                             callback: () => {
                                 let ignore = MonksPlayerSettings.getExcludeModules();
@@ -277,20 +281,22 @@ export class MonksPlayerSettings {
                                 }
                             }
                         },
-                        ignore: {
+                        {
                             label: "Ignore",
+                            action: "ignore",
                             callback: () => {
                                 let saveId = game.user.getFlag('monks-player-settings', 'save-id') || 0;
                                 game.user.setFlag('monks-player-settings', 'ignore-id', saveId);
                             }
                         },
-                        no: {
-                            icon: '<i class="fas fa-times"></i>',
-                            label: game.i18n.localize("No")
+                        {
+                            icon: "fas fa-times",
+                            label: game.i18n.localize("No"),
+                            action: "no"
                         },
-                    },
-                    render: (html) => {
-                        $('.setting-oldvalue,.setting-newvalue', html).on("click", (ev) => {
+                    ],
+                    render: (event, dialog) => {
+                        $('.setting-oldvalue,.setting-newvalue', dialog.element).on("click", (ev) => {
                             let use = ev.currentTarget.dataset.use;
                             let li = ev.currentTarget.closest(".setting-group");
                             let id = li.dataset.id;
@@ -309,7 +315,7 @@ export class MonksPlayerSettings {
                         })
                     },
                     close: () => { return true; }
-                }, { width: "600" });
+                });
 
                 if (storedChanged) {
                     game.user.setFlag('monks-player-settings', 'client-settings', JSON.stringify(stored));

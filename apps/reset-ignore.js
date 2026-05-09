@@ -1,19 +1,31 @@
-export class ResetIgnore extends FormApplication {
-    constructor(object, options) {
-        super(object, options);
-    }
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api
 
-    static get defaultOptions() {
-        const options = super.defaultOptions;
-        options.title = '';
-        options.id = 'player-settings-resetignore';
-        options.template = 'modules/monks-player-settings/templates/resetignore.html';
-        options.closeOnSubmit = true;
-        options.popOut = true;
-        options.width = 1;
-        options.height = 1;
-        return options;
-    }
+export class ResetIgnore extends HandlebarsApplicationMixin(ApplicationV2) {
+
+    static DEFAULT_OPTIONS = {
+        id: "player-settings-resetignore",
+        tag: "form",
+        classes: ["adjust-price"],
+        sheetConfig: false,
+        window: {
+            contentClasses: ["standard-form"],
+        },
+        actions: {
+        },
+        position: { },
+        form: {
+            closeOnSubmit: true,
+            submitOnClose: false,
+            submitOnChange: false
+        }
+    };
+
+    static PARTS = {
+        main: {
+            root: true,
+            template: "modules/monks-player-settings/templates/resetignore.html"
+        }
+    };
 
     static async resetIgnore(app) {
         await game.user.unsetFlag("monks-player-settings", "ignore-id");

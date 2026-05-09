@@ -1,4 +1,3 @@
-<h3>Difference in client settings detected</h3>
 <div class="flexrow">
     <div style="flex: 0 0 200px"></div>
     <div style="text-align:center;">This browser</div>
@@ -12,13 +11,13 @@
             {{#each this.changes}}
             <li class="setting-group flexrow" data-setting="{{this.id}}" data-id="{{../id}}">
                 <div class="setting-name">{{this.name}}</div>
-                <div class="setting-oldvalue {{#if (eq this.use "oldvalue")}}active{{/if}}" data-use="oldvalue" title="{{this.oldvalue}}"><span>{{this.oldvalue}}</span></div>
+                <div class="setting-oldvalue {{#if (eq this.use "oldvalue")}}active{{/if}}" data-use="oldvalue" data-tooltip="{{this.oldvalue}}"><span>{{this.oldvalue}}</span></div>
                 <div class="setting-direction"><i class="fas fa-chevron-right"></i></div>
-                <div class="setting-newvalue {{#if (eq this.use "newvalue")}}active{{/if}}" data-use="newvalue" title="{{this.newvalue}}"><span>{{this.newvalue}}</span></div>
+                <div class="setting-newvalue {{#if (eq this.use "newvalue")}}active{{/if}}" data-use="newvalue" data-tooltip="{{this.newvalue}}"><span>{{this.newvalue}}</span></div>
             </li>
             {{/each}}
         </ul>
     </li>
     {{/each}}
 </ul>
-<p>Would you like to sync your current account with the saved settings?</p>
+<p>Would you like to sync your current account with the saved settings? <i data-tooltip="What does this mean? Foundry saves client settings to the browser saved data, and you've logged into a different browser.  Monk's Player Settings has detected that settings you've used on that other browser are not the same and would like to try and keep your Foundry experience consistent.  By clicking on the individual settings presented above you can choose which settings to retain.  And by clicking on the 'Yes' button you will save those settings.  Clicking the 'Ignore' will ignore for right now, but will ask you again the next time you load Foundry.  And 'No' will prevent this dialog from re-appearing until the settings change again." class="fas fa-circle-question"></i></p>

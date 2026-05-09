@@ -1,13 +1,28 @@
 import { MonksPlayerSettings, i18n, setting, log } from "../monks-player-settings.js";
 
-export class MonksSettingsConfig extends SettingsConfig {
+export class MonksSettingsConfig extends foundry.applications.settings.SettingsConfig {
     constructor(...args) {
         super(...args);
 
         this.userId = game.user.id;
     }
 
-    async getData(options) {
+    static DEFAULT_OPTIONS = {
+        tag: "form",
+        form: {
+            handler: MonksSettingsConfig._onSubmit
+        }
+    }
+
+    /*
+    static PARTS = {
+        main: {
+            template: "modules/monks-player-settings/templates/main.hbs"
+        }
+    };
+    */
+
+    async _prepareContext(options) {
         if (game.user.isGM) {
             this.clientSettings = {};
             this.gmchanges = {};
@@ -25,10 +40,17 @@ export class MonksSettingsConfig extends SettingsConfig {
             this.gmchanges["players"] = JSON.parse(foundry.utils.getProperty(game.user, "flags.monks-player-settings.players-settings") || "{}");
         }
 
-        let data = await super.getData(options);
-        data.user = game.users.get(this.userId);
+        let context = super._prepareContext(options);
+        context.user = game.users.get(this.userId);
+        /*
+        context.userId = userId;
 
-        return data;
+        context.players = game.users.reduce((obj, u) => {
+            obj[u.id] = u.name;
+        }, { players: "-- All Players --"});
+        */
+
+        return context;
     }
 
     _prepareCategoryData() {
@@ -36,23 +58,11 @@ export class MonksSettingsConfig extends SettingsConfig {
             return super._prepareCategoryData();
 
         const gs = game.settings;
-        const canConfigure = game.user.can("SETTINGS_MODIFY");
-        let categories = new Map();
-        let total = 0;
-
-        const getCategory = (category) => {
-            let cat = categories.get(category.id);
-            if (!cat) {
-                cat = {
-                    id: category.id,
-                    title: category.title,
-                    menus: [],
-                    settings: [],
-                    count: 0
-                };
-                categories.set(category.id, cat);
-            }
-            return cat;
+ 
+        const categories = {};
+        const getCategory = namespace => {
+            const { id, label } = this._categorizeEntry(namespace);
+            return categories[id] ??= { id, label, entries: [] };
         };
 
         //find the settings of the users we're currently looking at
@@ -65,14 +75,22 @@ export class MonksSettingsConfig extends SettingsConfig {
         let ignoreModules = MonksPlayerSettings.getExcludeModules();
 
         // Classify all menus
+        const canConfigure = game.user.can("SETTINGS_MODIFY");
         for (let menu of gs.menus.values()) {
             // Exclude the setting from modules that are ignored
             if (this.userId != game.user.id && ignoreModules.includes(menu.namespace)) continue;
 
-            if (menu.restricted && !clientCanConfigure) continue;
-            const category = getCategory(this._categorizeEntry(menu.namespace));
-            category.menus.push(menu);
-            total++;
+            if (menu.restricted && !canConfigure) continue;
+            if ((menu.key === "core.permissions") && !game.user.hasRole("GAMEMASTER")) continue;
+            const category = getCategory(menu.namespace);
+            category.entries.push({
+                key: menu.key,
+                icon: menu.icon,
+                label: menu.name,
+                hint: menu.hint,
+                menu: true,
+                buttonText: menu.label
+            });
         }
 
         // Classify all settings
@@ -81,50 +99,100 @@ export class MonksSettingsConfig extends SettingsConfig {
             if (this.userId != game.user.id && ignoreModules.includes(setting.namespace)) continue;
 
             // Exclude settings the user cannot change
-            if (!setting.config || (!clientCanConfigure && (setting.scope !== "client"))) continue;
-
-            // Update setting data
-            const s = foundry.utils.deepClone(setting);
+            if (!setting.config || (!clientCanConfigure && (setting.scope === CONST.SETTING_SCOPES.WORLD))) continue;
 
             let originalValue;
             try {
-                originalValue = (this.userId != game.user.id ? this.getClientSetting(s.namespace, s.key, clientSettings) : game.settings.get(s.namespace, s.key));
+                originalValue = (this.userId != game.user.id ? this.getClientSetting(setting.namespace, setting.key, clientSettings) : game.settings.get(setting.namespace, setting.key));
             } catch (err) {
-                log(`Settings detected issue ${s.namespace}.${s.key}`, err);
+                log(`Settings detected issue ${setting.namespace}.${setting.key}`, err);
             }
 
-            s.id = `${s.namespace}.${s.key}`;
-            s.name = game.i18n.localize(s.name);
-            s.hint = game.i18n.localize(s.hint);
-            s.value = (this.userId != game.user.id ? (gmchanges[s.namespace] && gmchanges[s.namespace][s.key]) ?? originalValue : originalValue);
-            s.originalValue = originalValue;
-            s.type = setting.type instanceof Function ? setting.type.name : "String";
-            s.isCheckbox = setting.type === Boolean;
-            s.isSelect = s.choices !== undefined;
-            s.isRange = (setting.type === Number) && s.range;
-            s.isNumber = setting.type === Number;
-            s.filePickerType = s.filePicker === true ? "any" : s.filePicker;
-            s.dataField = setting.type instanceof foundry.data.fields.DataField ? setting.type : null;
-            s.input = setting.input;
+            const data = {
+                label: setting.value,
+                value: (this.userId != game.user.id ? (gmchanges[setting.namespace] && gmchanges[setting.namespace][setting.key]) ?? originalValue : originalValue),
+                originalValue,
+                menu: false
+            };
 
-            if (s.config && s.scope == "client")
-                this.clientdata[s.id] = s.originalValue;
+            // Define a DataField for each setting not originally defined with one
+            const fields = foundry.data.fields;
+            if (setting.type instanceof fields.DataField) {
+                data.field = setting.type;
+            }
+            else if (setting.type === Boolean) {
+                data.field = new fields.BooleanField({ initial: setting.default ?? false });
+            }
+            else if (setting.type === Number) {
+                const { min, max, step } = setting.range ?? {};
+                data.field = new fields.NumberField({
+                    required: true,
+                    choices: setting.choices,
+                    initial: setting.default,
+                    min,
+                    max,
+                    step
+                });
+            }
+            else if (setting.filePicker) {
+                const categories = {
+                    audio: ["AUDIO"],
+                    folder: [],
+                    font: ["FONT"],
+                    graphics: ["GRAPHICS"],
+                    image: ["IMAGE"],
+                    imagevideo: ["IMAGE", "VIDEO"],
+                    text: ["TEXT"],
+                    video: ["VIDEO"]
+                }[setting.filePicker] ?? Object.keys(CONST.FILE_CATEGORIES).filter(c => c !== "HTML");
+                if (categories.length) {
+                    data.field = new fields.FilePathField({ required: true, blank: true, categories });
+                }
+                else {
+                    data.field = new fields.StringField({ required: true }); // Folder paths cannot be FilePathFields
+                    data.folderPicker = true;
+                }
+            }
+            else {
+                data.field = new fields.StringField({ required: true, choices: setting.choices });
+            }
+            data.field.name = `${setting.namespace}.${setting.key}`;
+            data.field.label ||= game.i18n.localize(setting.name ?? "");
+            data.field.hint ||= game.i18n.localize(setting.hint ?? "");
 
-            const category = getCategory(this._categorizeEntry(setting.namespace));
-            category.settings.push(s);
-            total++;
+            // Categorize setting
+            const category = getCategory(setting.namespace);
+            category.entries.push(data);
+
+            if (setting.config && setting.scope == "client")
+                this.clientdata[setting.id] = setting.originalValue;
         }
-
-        // Sort categories by priority and assign Counts
-        for (let category of categories.values()) {
-            category.count = category.menus.length + category.settings.length;
-        }
-        categories = Array.from(categories.values()).sort(this._sortCategories.bind(this));
 
         this.clientdata = MonksPlayerSettings.mergeDefaults(MonksPlayerSettings.cleanSetting(foundry.utils.expandObject(this.clientdata)));
 
-        return { categories, total, user: game.user, canConfigure };
+        return categories;
     }
+
+    _categorizeEntry(namespace) {
+        switch (namespace) {
+            case "core":
+                return { id: "core", label: game.i18n.localize("PACKAGECONFIG.TABS.core") };
+            case game.system.id:
+                return { id: "system", label: game.system.title };
+            default: {
+                const module = game.modules.get(namespace);
+                return module
+                    ? { id: module.id, label: module.title }
+                    : { id: "unmapped", label: game.i18n.localize("PACKAGECONFIG.TABS.unmapped") };
+            }
+        }
+    }
+
+    /*
+    async _onRender(context, options) {
+        $(".viewed-user", this.element).on("change", this.changeUserSettings.bind(this))
+    }
+    */
 
     getClientSetting(namespace, key, storage = {}) {
         if (!game.user.isGM)
@@ -177,23 +245,45 @@ export class MonksSettingsConfig extends SettingsConfig {
         }
     }
 
-    async _onSubmit(event, options = {}) {
-        //only close if we're looking at oue own data
-        options.preventClose = (game.user.id !== this.userId) || options.preventClose;
-        return super._onSubmit.call(this, event, options);
+    async _onSubmitForm(formConfig, event) {
+        //only close if we're looking at our own data
+        formConfig.closeOnSubmit = (game.user.id === this.userId);
+        return super._onSubmitForm(formConfig, event);
     }
 
-    async _updateObject(event, formData) {
+    async originalSubmit(_event, _form, formData) {
+        let requiresClientReload = false;
+        let requiresWorldReload = false;
+        for (const [key, value] of Object.entries(formData.object)) {
+            const setting = game.settings.settings.get(key);
+            if (!setting) continue;
+            const priorValue = game.settings.get(setting.namespace, setting.key, { document: true })?._source.value;
+            let newSetting;
+            try {
+                newSetting = await game.settings.set(setting.namespace, setting.key, value, { document: true });
+            } catch (error) {
+                ui.notifications.error(error);
+            }
+            if (priorValue === newSetting?._source.value) continue; // Compare JSON strings
+            requiresClientReload ||= (setting.scope !== CONST.SETTING_SCOPES.WORLD) && setting.requiresReload;
+            requiresWorldReload ||= (setting.scope === CONST.SETTING_SCOPES.WORLD) && setting.requiresReload;
+        }
+        if (requiresClientReload || requiresWorldReload) {
+            await this.constructor.reloadConfirm({ world: requiresWorldReload });
+        }
+    }
+
+    static async _onSubmit(event, form, formData) {
         if (game.user.id == this.userId) {
             //this is just a regular update
-            await super._updateObject(event, formData);
+            await this.originalSubmit(event, form, formData);
 
             //save a copy of the client settings to user data
             if (setting("sync-settings"))
                 MonksPlayerSettings.saveSettings();
         } else {
             // Need to compare the formData with the client values
-            let settings = MonksPlayerSettings.mergeDefaults(MonksPlayerSettings.cleanSetting(foundry.utils.expandObject(foundry.utils.duplicate(formData))));
+            let settings = MonksPlayerSettings.mergeDefaults(MonksPlayerSettings.cleanSetting(foundry.utils.expandObject(foundry.utils.duplicate(formData.object))));
             
             if (this.userId == "players") {
                 let gameSettings = [...game.settings.settings].filter(([k, v]) => v.config && v.scope == "client").map(([k, v]) => v);
@@ -252,7 +342,7 @@ export const WithMonksSettingsConfig = (SettingsConfig) => {
 };
 
 Hooks.on('renderSettingsConfig', (app, html) => {
-    if (game.user.isGM) {
+    if (game.user.isGM && $("#mps-view-group", html).length == 0) {
         let userId = (app.userId || game.user.id);
 
         let select = $('<select>')
@@ -267,10 +357,6 @@ Hooks.on('renderSettingsConfig', (app, html) => {
             .append($('<label>').html('View settings for Player:'))
             .append($('<div>').addClass('form-fields').append(select));
 
-        if ($('.window-content', html).length)
-            $('.window-content', html).prepend(div);
-        else
-            div.insertBefore(html);
-
+        $('.window-content .main', html).prepend(div);
     }
 })
