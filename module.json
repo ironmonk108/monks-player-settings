@@ -9,7 +9,7 @@
 	  "flags": {
 		  "github": "ironmonk108",
 		  "patreon": "ironmonk",
-		  "ko-fi": "ironmonk88"
+		  "ko-fi": "ironmonk108"
 	  }
     }
   ],
@@ -34,8 +34,8 @@
   "bugs": "https://github.com/ironmonk108/monks-player-settings/issues",
   "id": "monks-player-settings",
   "compatibility": {
-    "minimum": "13",
-    "verified": "13"
+    "minimum": "14",
+    "verified": "14"
   },
   "flags": {
     "allowBugReporter": true
