@@ -1,0 +1,6 @@
+{
+	"MonksPlayerSettings.sync-settings.name": "Ustawienia synchronizacji",
+	"MonksPlayerSettings.sync-settings.hint": "Zapisanie ustawień w tym kliencie spowoduje aktualizację ustawień synchronizacji",
+	"MonksPlayerSettings.ignore-modules.name": "Ignoruj moduły",
+	"MonksPlayerSettings.ignore-modules.hint": "Moduły, które powinny być ignorowane przez ustawienia synchronizacji"
+}
